@@ -7,6 +7,8 @@ import { generateSamplePurchases, generateSampleCheckIns } from '../data/sampleD
 import {
   initAuth,
   googleSignIn,
+  emailSignIn,
+  emailSignUp,
   logoutGoogle,
   getCurrentUser,
 } from '../services/firebaseAuth';
@@ -125,6 +127,8 @@ interface SpotOnContextType {
 
   // Google Drive Actions
   loginWithGoogle: () => Promise<boolean>;
+  loginWithEmail: (email: string, password: string) => Promise<boolean>;
+  signUpWithEmail: (email: string, password: string) => Promise<boolean>;
   logoutFromGoogle: () => Promise<void>;
   refreshDriveFiles: () => Promise<void>;
   backupToDrive: (note?: string) => Promise<boolean>;
@@ -1040,6 +1044,38 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [showToast]);
 
+  const loginWithEmail = useCallback(async (email: string, password: string): Promise<boolean> => {
+    setAuthError(null);
+    setIsAuthLoading(true);
+    try {
+      const user = await emailSignIn(email, password);
+      setGoogleUser(user);
+      setSettings((prev) => ({ ...prev, localOnly: false, cloudBackup: true }));
+      setIsGoogleAuthModalOpen(false);
+      showToast(`Welcome back${user.displayName ? `, ${user.displayName}` : ''}`);
+      return true;
+    } catch (error: any) {
+      setAuthError(error?.message || 'Sign-in failed');
+      return false;
+    } finally { setIsAuthLoading(false); }
+  }, [showToast]);
+
+  const signUpWithEmail = useCallback(async (email: string, password: string): Promise<boolean> => {
+    setAuthError(null);
+    setIsAuthLoading(true);
+    try {
+      const user = await emailSignUp(email, password);
+      setGoogleUser(user);
+      setSettings((prev) => ({ ...prev, localOnly: false, cloudBackup: true }));
+      setIsGoogleAuthModalOpen(false);
+      showToast('Your SpotOn account is ready');
+      return true;
+    } catch (error: any) {
+      setAuthError(error?.message || 'Account creation failed');
+      return false;
+    } finally { setIsAuthLoading(false); }
+  }, [showToast]);
+
   const logoutFromGoogle = useCallback(async () => {
     try {
       await logoutGoogle();
@@ -1347,6 +1383,8 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         toggleDailyReminder,
         sendTestNotification,
         loginWithGoogle,
+        loginWithEmail,
+        signUpWithEmail,
         logoutFromGoogle,
         refreshDriveFiles,
         backupToDrive,

@@ -5,7 +5,9 @@ SpotOn uses Firebase Authentication as the source of truth for Google sign-in an
 ## Firebase
 
 1. In Firebase Console, enable **Authentication > Sign-in method > Google**.
-2. Under **Authentication > Settings > Authorized domains**, add the exact deployed Vercel hostname, preview hostname, and `localhost` for local development.
+2. Enable **Email/Password** under the same Sign-in method page.
+3. Under **Authentication > Settings > Authorized domains**, add `localhost`, `spot-on-3.vercel.app`, and `expense-tracker-3.v0.build`, plus each preview hostname you use.
+4. Keep the exact deployed Vercel hostname and preview hostname authorized; Firebase does not accept wildcard domains.
 3. Confirm the Firebase web app configuration in `firebase-applet-config.json` belongs to the same Firebase project.
 
 ## Google Cloud

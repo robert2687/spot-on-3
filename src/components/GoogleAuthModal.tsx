@@ -22,6 +22,8 @@ export const GoogleAuthModal: React.FC = () => {
     openGoogleAuthModal,
     closeGoogleAuthModal,
     loginWithGoogle,
+    loginWithEmail,
+    signUpWithEmail,
     isAuthLoading,
     authError,
     clearAuthError,
@@ -29,6 +31,9 @@ export const GoogleAuthModal: React.FC = () => {
   } = useSpotOn();
 
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>(authModalMode || 'signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Sync tab with context modal mode whenever opened
   React.useEffect(() => {
@@ -42,7 +47,13 @@ export const GoogleAuthModal: React.FC = () => {
   const isSignUp = activeTab === 'signup';
 
   const handleAuth = async () => {
-    await loginWithGoogle();
+    if (!email.trim() || !password) return;
+    if (isSignUp) {
+      if (password !== confirmPassword) return;
+      await signUpWithEmail(email, password);
+    } else {
+      await loginWithEmail(email, password);
+    }
   };
 
   return (
@@ -163,6 +174,21 @@ export const GoogleAuthModal: React.FC = () => {
               <button type="button" onClick={clearAuthError} className="font-bold hover:underline" aria-label="Dismiss error">Dismiss</button>
             </div>
           )}
+
+          <form onSubmit={(event) => { event.preventDefault(); void handleAuth(); }} className="space-y-3">
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300" htmlFor="spoton-email">Email</label>
+            <input id="spoton-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-blue-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300" htmlFor="spoton-password">Password</label>
+            <input id="spoton-password" type="password" autoComplete={isSignUp ? 'new-password' : 'current-password'} required minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-blue-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+            {isSignUp && <>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-300" htmlFor="spoton-confirm-password">Confirm password</label>
+              <input id="spoton-confirm-password" type="password" autoComplete="new-password" required minLength={6} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repeat your password" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-blue-500 focus:ring-2 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+              {confirmPassword && password !== confirmPassword && <p className="text-xs text-red-600">Passwords do not match.</p>}
+            </>}
+            <button type="submit" disabled={isAuthLoading || !email || !password || (isSignUp && password !== confirmPassword)} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{isAuthLoading ? 'Connecting...' : isSignUp ? 'Create account' : 'Sign in'}</button>
+          </form>
+
+          <div className="relative py-1 text-center text-[11px] text-slate-400"><span className="bg-white px-2 dark:bg-slate-900">or continue with</span></div>
 
           {/* Google Auth Primary Button */}
           <div className="space-y-3">

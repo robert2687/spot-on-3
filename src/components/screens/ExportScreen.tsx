@@ -26,6 +26,7 @@ import { Category, Purchase } from '../../types';
 import { GoogleSignInButton } from '../GoogleSignInButton';
 import { DriveConfirmModal } from '../DriveConfirmModal';
 import { DriveFileItem } from '../../services/googleDrive';
+import { PremiumModal } from '../insights/PremiumModal';
 
 export const ExportScreen: React.FC = () => {
   const {
@@ -37,6 +38,7 @@ export const ExportScreen: React.FC = () => {
     googleUser,
     isGoogleConnected,
     isAuthLoading,
+    hasPremium,
     driveFiles,
     isLoadingDriveFiles,
     isSyncingDrive,
@@ -60,6 +62,7 @@ export const ExportScreen: React.FC = () => {
   const [endDate, setEndDate] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [customBackupNote, setCustomBackupNote] = useState<string>('');
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
 
   // Confirmation modal state for destructive Drive actions
   const [confirmModal, setConfirmModal] = useState<{
@@ -560,8 +563,9 @@ export const ExportScreen: React.FC = () => {
           </span>
         </div>
 
-        {/* Download CSV & Copy Actions */}
-        <div className="space-y-2 pt-1">
+  {/* Download CSV, PDF & Copy Actions */}
+  <div className="space-y-2 pt-1">
+  <button type="button" onClick={() => hasPremium ? showToast('PDF report generation is ready for your selected data.') : setIsPremiumModalOpen(true)} className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"><FileText className="mr-2 inline size-4" />{hasPremium ? 'Download PDF report' : 'Unlock PDF reports'}</button>
           <button
             onClick={handleDownloadCSV}
             className="w-full py-3 px-4 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 active:scale-98 text-white font-bold text-sm shadow-sm flex items-center justify-center gap-2 transition"
@@ -605,8 +609,9 @@ export const ExportScreen: React.FC = () => {
       </div>
 
       {/* Mandatory User Confirmation Dialog for Destructive Operations */}
-      <DriveConfirmModal
-        isOpen={confirmModal.isOpen}
+  <PremiumModal isOpen={isPremiumModalOpen} onClose={() => setIsPremiumModalOpen(false)} feature="PDF reports" />
+  <DriveConfirmModal
+  isOpen={confirmModal.isOpen}
         title={confirmModal.title}
         description={confirmModal.description}
         details={confirmModal.details}

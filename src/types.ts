@@ -59,6 +59,17 @@ export interface DailyCheckIn {
 
 export type NavigationTab = 'home' | 'timeline' | 'insights' | 'export';
 
+export type PlanId = 'free' | 'premium' | 'lifetime' | 'business';
+
+export interface EntitlementState {
+  plan: PlanId;
+  premiumUntil?: string;
+  referralCode: string;
+  successfulReferrals: number;
+  checkoutStatus: 'idle' | 'loading' | 'success' | 'cancelled' | 'error';
+  billingAvailable: boolean;
+}
+
 export type MilestoneCategory = 'all' | 'streaks' | 'budget' | 'tracking';
 export type MilestoneTier = 'bronze' | 'silver' | 'gold' | 'diamond';
 

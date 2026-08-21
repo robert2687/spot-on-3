@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Purchase, AppSettings, NavigationTab, ToastMessage, PresetItem, Category, DailyCheckIn, Language } from '../types';
+import { Purchase, AppSettings, NavigationTab, ToastMessage, PresetItem, Category, DailyCheckIn, Language, EntitlementState } from '../types';
+import { DEFAULT_ENTITLEMENTS, getReferralReward, isPremium, startCheckout } from '../services/billing';
 import { getTranslation, TranslationKey } from '../i18n/translations';
 import { DEFAULT_PRESETS } from '../data/defaultPresets';
 import { generateSamplePurchases, generateSampleCheckIns } from '../data/sampleData';
 import {
   initAuth,
   googleSignIn,
+  emailSignIn,
+  emailSignUp,
   logoutGoogle,
   getCurrentUser,
 } from '../services/firebaseAuth';
@@ -62,6 +65,8 @@ interface SpotOnContextType {
   googleUser: User | null;
   isGoogleConnected: boolean;
   isAuthLoading: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
   isGoogleAuthModalOpen: boolean;
   authModalMode: 'signin' | 'signup';
   openGoogleAuthModal: (mode?: 'signin' | 'signup') => void;
@@ -73,6 +78,12 @@ interface SpotOnContextType {
   lastDriveSync: string | null;
   firestoreSyncStatus: 'synced' | 'syncing' | 'offline' | 'idle';
   syncWithFirestore: () => Promise<boolean>;
+
+  // Billing and referrals
+  entitlements: EntitlementState;
+  hasPremium: boolean;
+  startPremiumCheckout: (productId: 'premium' | 'lifetime' | 'business') => Promise<boolean>;
+  copyReferralLink: () => Promise<boolean>;
 
   // Actions
   setActiveTab: (tab: NavigationTab) => void;
@@ -116,6 +127,8 @@ interface SpotOnContextType {
 
   // Google Drive Actions
   loginWithGoogle: () => Promise<boolean>;
+  loginWithEmail: (email: string, password: string) => Promise<boolean>;
+  signUpWithEmail: (email: string, password: string) => Promise<boolean>;
   logoutFromGoogle: () => Promise<void>;
   refreshDriveFiles: () => Promise<void>;
   backupToDrive: (note?: string) => Promise<boolean>;
@@ -226,6 +239,7 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Google Drive & Auth State
   const [googleUser, setGoogleUser] = useState<User | null>(() => getCurrentUser());
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isGoogleAuthModalOpen, setIsGoogleAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
   const [driveFiles, setDriveFiles] = useState<DriveFileItem[]>([]);
@@ -236,8 +250,46 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return localStorage.getItem(STORAGE_KEY_LAST_SYNC);
   });
   const [firestoreSyncStatus, setFirestoreSyncStatus] = useState<'synced' | 'syncing' | 'offline' | 'idle'>('idle');
+  const [entitlements, setEntitlements] = useState<EntitlementState>(() => {
+    try {
+      const saved = localStorage.getItem('spoton_entitlements_v1');
+      return saved ? { ...DEFAULT_ENTITLEMENTS, ...JSON.parse(saved) } : { ...DEFAULT_ENTITLEMENTS, referralCode: `SPOT-${Math.random().toString(36).slice(2, 8).toUpperCase()}` };
+    } catch {
+      return { ...DEFAULT_ENTITLEMENTS, referralCode: `SPOT-${Math.random().toString(36).slice(2, 8).toUpperCase()}` };
+    }
+  });
 
   const isGoogleConnected = Boolean(googleUser);
+  const hasPremium = isPremium(entitlements);
+
+  useEffect(() => {
+    localStorage.setItem('spoton_entitlements_v1', JSON.stringify(entitlements));
+  }, [entitlements]);
+
+  const startPremiumCheckout = useCallback(async (productId: 'premium' | 'lifetime' | 'business') => {
+    setEntitlements((prev) => ({ ...prev, checkoutStatus: 'loading' }));
+    try {
+      const result = await startCheckout(productId, googleUser?.uid);
+      if (result.url) window.location.assign(result.url);
+      setEntitlements((prev) => ({ ...prev, checkoutStatus: 'success', billingAvailable: true }));
+      return true;
+    } catch (error) {
+      setEntitlements((prev) => ({ ...prev, checkoutStatus: 'error' }));
+      console.warn('[v0] Checkout failed:', error);
+      return false;
+    }
+  }, [googleUser?.uid]);
+
+  const copyReferralLink = useCallback(async () => {
+    try {
+      const link = `${window.location.origin}/?ref=${entitlements.referralCode}`;
+      await navigator.clipboard.writeText(link);
+      return true;
+    } catch {
+      console.warn('[v0] Could not copy referral link');
+      return false;
+    }
+  }, [entitlements.referralCode]);
 
   // Undo & Toast
   const [lastAction, setLastAction] = useState<HistoryAction | null>(null);
@@ -950,7 +1002,10 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsGoogleAuthModalOpen(false);
   }, []);
 
+  const clearAuthError = useCallback(() => setAuthError(null), []);
+
   const loginWithGoogle = useCallback(async (): Promise<boolean> => {
+    setAuthError(null);
     setIsAuthLoading(true);
     try {
       const result = await googleSignIn();
@@ -981,12 +1036,44 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         !msg.includes('popup-closed-by-user') &&
         !msg.includes('cancelled-popup-request')
       ) {
-        showToast(msg || 'Google Sign-In failed');
+        setAuthError(msg || 'Google Sign-In failed');
       }
       return false;
     } finally {
       setIsAuthLoading(false);
     }
+  }, [showToast]);
+
+  const loginWithEmail = useCallback(async (email: string, password: string): Promise<boolean> => {
+    setAuthError(null);
+    setIsAuthLoading(true);
+    try {
+      const user = await emailSignIn(email, password);
+      setGoogleUser(user);
+      setSettings((prev) => ({ ...prev, localOnly: false, cloudBackup: true }));
+      setIsGoogleAuthModalOpen(false);
+      showToast(`Welcome back${user.displayName ? `, ${user.displayName}` : ''}`);
+      return true;
+    } catch (error: any) {
+      setAuthError(error?.message || 'Sign-in failed');
+      return false;
+    } finally { setIsAuthLoading(false); }
+  }, [showToast]);
+
+  const signUpWithEmail = useCallback(async (email: string, password: string): Promise<boolean> => {
+    setAuthError(null);
+    setIsAuthLoading(true);
+    try {
+      const user = await emailSignUp(email, password);
+      setGoogleUser(user);
+      setSettings((prev) => ({ ...prev, localOnly: false, cloudBackup: true }));
+      setIsGoogleAuthModalOpen(false);
+      showToast('Your SpotOn account is ready');
+      return true;
+    } catch (error: any) {
+      setAuthError(error?.message || 'Account creation failed');
+      return false;
+    } finally { setIsAuthLoading(false); }
   }, [showToast]);
 
   const logoutFromGoogle = useCallback(async () => {
@@ -1253,6 +1340,8 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         googleUser,
         isGoogleConnected,
         isAuthLoading,
+        authError,
+        clearAuthError,
         isGoogleAuthModalOpen,
         authModalMode,
         openGoogleAuthModal,
@@ -1264,6 +1353,10 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         lastDriveSync,
         firestoreSyncStatus,
         syncWithFirestore,
+        entitlements,
+        hasPremium,
+        startPremiumCheckout,
+        copyReferralLink,
         setActiveTab,
         openAddModal,
         closeAddModal,
@@ -1290,6 +1383,8 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         toggleDailyReminder,
         sendTestNotification,
         loginWithGoogle,
+        loginWithEmail,
+        signUpWithEmail,
         logoutFromGoogle,
         refreshDriveFiles,
         backupToDrive,

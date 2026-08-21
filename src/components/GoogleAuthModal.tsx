@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Lock,
   ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 import { useSpotOn } from '../context/SpotOnContext';
 import { GoogleSignInButton } from './GoogleSignInButton';
@@ -22,6 +23,8 @@ export const GoogleAuthModal: React.FC = () => {
     closeGoogleAuthModal,
     loginWithGoogle,
     isAuthLoading,
+    authError,
+    clearAuthError,
     t,
   } = useSpotOn();
 
@@ -149,6 +152,17 @@ export const GoogleAuthModal: React.FC = () => {
               </span>
             </div>
           </div>
+
+          {authError && (
+            <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="flex-1 leading-relaxed">
+                <p>{authError}</p>
+                <p className="mt-1 text-[11px] opacity-80">If this is a new Vercel domain, add it to Firebase Authentication&apos;s Authorized domains.</p>
+              </div>
+              <button type="button" onClick={clearAuthError} className="font-bold hover:underline" aria-label="Dismiss error">Dismiss</button>
+            </div>
+          )}
 
           {/* Google Auth Primary Button */}
           <div className="space-y-3">

@@ -2,6 +2,8 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
@@ -35,8 +37,32 @@ GOOGLE_DRIVE_SCOPES.forEach((scope) => {
   provider.addScope(scope);
 });
 provider.setCustomParameters({
-  prompt: 'consent',
+  prompt: 'select_account',
 });
+
+export const getGoogleAuthErrorMessage = (error: any): string => {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  if (code === 'auth/unauthorized-domain') {
+    return `This site is not authorized in Firebase. Add ${window.location.hostname} to Firebase Authentication > Settings > Authorized domains.`;
+  }
+  if (code === 'auth/operation-not-allowed') {
+    return 'Google sign-in is not enabled in Firebase Authentication. Enable the Google provider and try again.';
+  }
+  if (code === 'auth/popup-blocked') {
+    return 'Your browser blocked the Google sign-in popup. Allow popups for this site and try again.';
+  }
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+    return '';
+  }
+  if (code === 'auth/invalid-api-key' || code === 'auth/configuration-not-found') {
+    return 'Firebase authentication is not configured for this deployment. Check the Firebase web app configuration.';
+  }
+  if (message.toLowerCase().includes('redirect_uri_mismatch')) {
+    return 'Google rejected this redirect URL. Add the Firebase auth handler domain to Google Cloud OAuth authorized redirect URIs.';
+  }
+  return 'Google sign-in could not be completed. Check the Firebase Authorized domains and Google OAuth settings, then try again.';
+};
 
 // Flag to indicate if sign-in is currently in flight
 let isSigningIn = false;
@@ -51,6 +77,16 @@ export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
+  void getRedirectResult(auth).then((result) => {
+    if (!result) return;
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    cachedAccessToken = credential?.accessToken || null;
+    onAuthSuccess?.(result.user, cachedAccessToken || '');
+  }).catch((error) => {
+    console.error('[v0] Google redirect sign-in failed:', error);
+    onAuthFailure?.();
+  });
+
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
       if (onAuthSuccess) {
@@ -88,10 +124,11 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
       return null;
     }
     if (code === 'auth/popup-blocked') {
-      throw new Error('Sign-in popup was blocked by your browser. Please allow popups for this site and try again.');
+      await signInWithRedirect(auth, provider);
+      return null;
     }
-    console.error('Google Sign-In Error:', error);
-    throw error;
+    console.error('[v0] Google Sign-In Error:', { code, message: error?.message });
+    throw new Error(getGoogleAuthErrorMessage(error));
   } finally {
     isSigningIn = false;
   }

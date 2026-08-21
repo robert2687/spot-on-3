@@ -63,6 +63,8 @@ interface SpotOnContextType {
   googleUser: User | null;
   isGoogleConnected: boolean;
   isAuthLoading: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
   isGoogleAuthModalOpen: boolean;
   authModalMode: 'signin' | 'signup';
   openGoogleAuthModal: (mode?: 'signin' | 'signup') => void;
@@ -233,6 +235,7 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Google Drive & Auth State
   const [googleUser, setGoogleUser] = useState<User | null>(() => getCurrentUser());
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isGoogleAuthModalOpen, setIsGoogleAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
   const [driveFiles, setDriveFiles] = useState<DriveFileItem[]>([]);
@@ -995,7 +998,10 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsGoogleAuthModalOpen(false);
   }, []);
 
+  const clearAuthError = useCallback(() => setAuthError(null), []);
+
   const loginWithGoogle = useCallback(async (): Promise<boolean> => {
+    setAuthError(null);
     setIsAuthLoading(true);
     try {
       const result = await googleSignIn();
@@ -1026,7 +1032,7 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         !msg.includes('popup-closed-by-user') &&
         !msg.includes('cancelled-popup-request')
       ) {
-        showToast(msg || 'Google Sign-In failed');
+        setAuthError(msg || 'Google Sign-In failed');
       }
       return false;
     } finally {
@@ -1298,6 +1304,8 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         googleUser,
         isGoogleConnected,
         isAuthLoading,
+        authError,
+        clearAuthError,
         isGoogleAuthModalOpen,
         authModalMode,
         openGoogleAuthModal,

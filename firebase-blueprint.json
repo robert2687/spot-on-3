@@ -1,0 +1,233 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User preferences, budget targets, and app settings.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique identifier of the user (Firebase Auth UID).",
+          "maxLength": 128
+        },
+        "currency": {
+          "type": "string",
+          "description": "Selected currency code.",
+          "maxLength": 10
+        },
+        "currencySymbol": {
+          "type": "string",
+          "description": "Currency symbol for formatting.",
+          "maxLength": 10
+        },
+        "monthlyBudget": {
+          "type": "number",
+          "description": "Total monthly spending budget target."
+        },
+        "alcoholBudget": {
+          "type": "number",
+          "description": "Optional monthly budget target for alcohol."
+        },
+        "tobaccoBudget": {
+          "type": "number",
+          "description": "Optional monthly budget target for tobacco."
+        },
+        "budgetAlertEnabled": {
+          "type": "boolean",
+          "description": "Whether to trigger alerts when nearing budget limit."
+        },
+        "budgetAlertThreshold": {
+          "type": "number",
+          "description": "Percentage threshold (e.g. 80 for 80%) to trigger budget warning alerts."
+        },
+        "showBudgetOnHome": {
+          "type": "boolean",
+          "description": "Whether to display budget progress on the home screen."
+        },
+        "theme": {
+          "type": "string",
+          "description": "Theme preference: light, dark, or system.",
+          "enum": ["light", "dark", "system"]
+        },
+        "dailyReminderEnabled": {
+          "type": "boolean",
+          "description": "Whether daily logging reminder notifications are enabled."
+        },
+        "dailyReminderTime": {
+          "type": "string",
+          "description": "HH:mm time string for daily reminder.",
+          "maxLength": 10
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update."
+        }
+      },
+      "required": ["userId", "currency", "currencySymbol", "monthlyBudget"]
+    },
+    "Purchase": {
+      "title": "Purchase",
+      "description": "An alcohol or tobacco purchase entry.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique purchase ID.",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID.",
+          "maxLength": 128
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of purchase (alcohol or tobacco).",
+          "enum": ["alcohol", "tobacco"]
+        },
+        "subcategory": {
+          "type": "string",
+          "description": "Name or subcategory description of item.",
+          "maxLength": 150
+        },
+        "price": {
+          "type": "number",
+          "description": "Unit price of item."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Number of units purchased."
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "Total purchase cost (price * quantity)."
+        },
+        "place": {
+          "type": "string",
+          "description": "Location type of purchase.",
+          "maxLength": 50
+        },
+        "date": {
+          "type": "string",
+          "description": "ISO date-time string of purchase.",
+          "maxLength": 50
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional notes or tags.",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Epoch timestamp in milliseconds when entry was created."
+        }
+      },
+      "required": ["id", "userId", "category", "subcategory", "price", "quantity", "totalPrice", "place", "date", "createdAt"]
+    },
+    "PresetItem": {
+      "title": "PresetItem",
+      "description": "Quick-tap preset for frequently purchased items.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique preset ID.",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID.",
+          "maxLength": 128
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of item (alcohol or tobacco).",
+          "enum": ["alcohol", "tobacco"]
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the preset item.",
+          "maxLength": 100
+        },
+        "defaultPrice": {
+          "type": "number",
+          "description": "Default price for the preset item."
+        },
+        "place": {
+          "type": "string",
+          "description": "Default purchase location.",
+          "maxLength": 50
+        },
+        "icon": {
+          "type": "string",
+          "description": "Optional emoji or icon name.",
+          "maxLength": 50
+        }
+      },
+      "required": ["id", "userId", "category", "name", "defaultPrice", "place"]
+    },
+    "DailyCheckIn": {
+      "title": "DailyCheckIn",
+      "description": "Daily habit check-in record for substance-free tracking.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique check-in ID (e.g. checkin-YYYY-MM-DD).",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID.",
+          "maxLength": 128
+        },
+        "date": {
+          "type": "string",
+          "description": "Calendar date of check-in in YYYY-MM-DD format.",
+          "maxLength": 20
+        },
+        "alcoholFree": {
+          "type": "boolean",
+          "description": "Whether the user stayed alcohol-free on this date."
+        },
+        "tobaccoFree": {
+          "type": "boolean",
+          "description": "Whether the user stayed tobacco-free on this date."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional user reflection or craving note.",
+          "maxLength": 500
+        },
+        "mood": {
+          "type": "string",
+          "description": "Optional mood/energy level.",
+          "enum": ["great", "good", "neutral", "struggled"]
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Epoch timestamp in milliseconds when entry was recorded."
+        }
+      },
+      "required": ["id", "userId", "date", "alcoholFree", "tobaccoFree", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile document storing user preferences and settings."
+    },
+    "/users/{userId}/purchases/{purchaseId}": {
+      "schema": { "$ref": "#/entities/Purchase" },
+      "description": "User's individual purchases subcollection."
+    },
+    "/users/{userId}/presets/{presetId}": {
+      "schema": { "$ref": "#/entities/PresetItem" },
+      "description": "User's customized presets subcollection."
+    },
+    "/users/{userId}/checkins/{checkinId}": {
+      "schema": { "$ref": "#/entities/DailyCheckIn" },
+      "description": "User's daily habit check-in subcollection for streak tracking."
+    }
+  }
+}

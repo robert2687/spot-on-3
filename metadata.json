@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix SpotOn – Alcohol \u0026 Tobacco Spending Tracker",
+  "description": "A clear, friendly, non-judgmental spending tracker for alcohol and tobacco with timelines, patterns, Google Drive cloud backup, and multilingual support (English, Slovak, German, Spanish).",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

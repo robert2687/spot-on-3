@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation for UserProfile
+    function isValidUserProfile(data, userId) {
+      return data.userId == userId
+        && data.userId is string && data.userId.size() <= 128
+        && data.currency is string && data.currency.size() <= 10
+        && data.currencySymbol is string && data.currencySymbol.size() <= 10
+        && data.monthlyBudget is number && data.monthlyBudget >= 0
+        && (!('alcoholBudget' in data) || (data.alcoholBudget is number && data.alcoholBudget >= 0))
+        && (!('tobaccoBudget' in data) || (data.tobaccoBudget is number && data.tobaccoBudget >= 0))
+        && (!('budgetAlertEnabled' in data) || data.budgetAlertEnabled is bool)
+        && (!('budgetAlertThreshold' in data) || (data.budgetAlertThreshold is number && data.budgetAlertThreshold >= 10 && data.budgetAlertThreshold <= 100))
+        && (!('showBudgetOnHome' in data) || data.showBudgetOnHome is bool)
+        && (!('theme' in data) || (data.theme is string && (data.theme == 'light' || data.theme == 'dark' || data.theme == 'system')))
+        && (!('dailyReminderEnabled' in data) || data.dailyReminderEnabled is bool)
+        && (!('dailyReminderTime' in data) || (data.dailyReminderTime is string && data.dailyReminderTime.size() <= 10))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    // Validation for Purchase
+    function isValidPurchase(data, userId) {
+      return data.userId == userId
+        && data.id is string && data.id.size() <= 128
+        && data.category is string && (data.category == 'alcohol' || data.category == 'tobacco')
+        && data.subcategory is string && data.subcategory.size() > 0 && data.subcategory.size() <= 150
+        && data.price is number && data.price >= 0
+        && data.quantity is number && data.quantity > 0 && data.quantity <= 10000
+        && data.totalPrice is number && data.totalPrice >= 0
+        && data.place is string && data.place.size() <= 50
+        && data.date is string && data.date.size() <= 50
+        && data.createdAt is number
+        && (!('note' in data) || (data.note is string && data.note.size() <= 500));
+    }
+
+    // Validation for PresetItem
+    function isValidPresetItem(data, userId) {
+      return data.userId == userId
+        && data.id is string && data.id.size() <= 128
+        && data.category is string && (data.category == 'alcohol' || data.category == 'tobacco')
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.defaultPrice is number && data.defaultPrice >= 0
+        && data.place is string && data.place.size() <= 50
+        && (!('icon' in data) || (data.icon is string && data.icon.size() <= 50));
+    }
+
+    // Validation for DailyCheckIn
+    function isValidDailyCheckIn(data, userId) {
+      return data.userId == userId
+        && data.id is string && data.id.size() <= 128
+        && data.date is string && data.date.size() > 0 && data.date.size() <= 20
+        && data.alcoholFree is bool
+        && data.tobaccoFree is bool
+        && data.createdAt is number
+        && (!('note' in data) || (data.note is string && data.note.size() <= 500))
+        && (!('mood' in data) || (data.mood is string && (data.mood == 'great' || data.mood == 'good' || data.mood == 'neutral' || data.mood == 'struggled')));
+    }
+
+    // User Profile Document
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId);
+
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().userId == existing().userId;
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Subcollection: Purchases
+      match /purchases/{purchaseId} {
+        allow get: if isOwner(userId) && isValidId(purchaseId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && isValidId(purchaseId)
+          && isValidPurchase(incoming(), userId)
+          && incoming().id == purchaseId;
+
+        allow update: if isOwner(userId)
+          && isValidId(purchaseId)
+          && isValidPurchase(incoming(), userId)
+          && incoming().id == existing().id
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt;
+
+        allow delete: if isOwner(userId) && isValidId(purchaseId);
+      }
+
+      // Subcollection: Presets
+      match /presets/{presetId} {
+        allow get: if isOwner(userId) && isValidId(presetId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && isValidId(presetId)
+          && isValidPresetItem(incoming(), userId)
+          && incoming().id == presetId;
+
+        allow update: if isOwner(userId)
+          && isValidId(presetId)
+          && isValidPresetItem(incoming(), userId)
+          && incoming().id == existing().id
+          && incoming().userId == existing().userId;
+
+        allow delete: if isOwner(userId) && isValidId(presetId);
+      }
+
+      // Subcollection: Daily Check-Ins
+      match /checkins/{checkinId} {
+        allow get: if isOwner(userId) && isValidId(checkinId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && isValidId(checkinId)
+          && isValidDailyCheckIn(incoming(), userId)
+          && incoming().id == checkinId;
+
+        allow update: if isOwner(userId)
+          && isValidId(checkinId)
+          && isValidDailyCheckIn(incoming(), userId)
+          && incoming().id == existing().id
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt;
+
+        allow delete: if isOwner(userId) && isValidId(checkinId);
+      }
+    }
+  }
+}

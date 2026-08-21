@@ -100,6 +100,20 @@ service cloud.firestore {
 
       allow delete: if isOwner(userId) && isValidId(userId);
 
+      // Billing state is readable by the owner; writes are server-only via Admin SDK.
+      match /billing/{billingId} {
+        allow get: if isOwner(userId) && isValidId(billingId);
+        allow list: if false;
+        allow write: if false;
+      }
+
+      // Referral records are owner-readable; verified reward writes are server-only.
+      match /referrals/{referralId} {
+        allow get: if isOwner(userId) && isValidId(referralId);
+        allow list: if isOwner(userId);
+        allow write: if false;
+      }
+
       // Subcollection: Purchases
       match /purchases/{purchaseId} {
         allow get: if isOwner(userId) && isValidId(purchaseId);

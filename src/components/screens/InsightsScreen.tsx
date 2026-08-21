@@ -26,6 +26,7 @@ import { useSpotOn } from '../../context/SpotOnContext';
 import { formatCurrency, getTimeBucket, getDayOfWeek } from '../../utils/formatters';
 import { Category, Purchase } from '../../types';
 import { MilestonesSection } from '../insights/MilestonesSection';
+import { MonetizationPanel } from '../insights/MonetizationPanel';
 
 export const InsightsScreen: React.FC = () => {
   const { purchases, settings, updateSettings, showToast, t, language } = useSpotOn();
@@ -624,6 +625,8 @@ export const InsightsScreen: React.FC = () => {
           </div>
         </div>
       </section>
+
+      <MonetizationPanel />
 
       {/* ========================================================= */}
       {/* 2. MILESTONES & CELEBRATIONS SECTION */}

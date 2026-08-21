@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Purchase, AppSettings, NavigationTab, ToastMessage, PresetItem, Category, DailyCheckIn, Language } from '../types';
+import { Purchase, AppSettings, NavigationTab, ToastMessage, PresetItem, Category, DailyCheckIn, Language, EntitlementState } from '../types';
+import { DEFAULT_ENTITLEMENTS, getReferralReward, isPremium, startCheckout } from '../services/billing';
 import { getTranslation, TranslationKey } from '../i18n/translations';
 import { DEFAULT_PRESETS } from '../data/defaultPresets';
 import { generateSamplePurchases, generateSampleCheckIns } from '../data/sampleData';
@@ -73,6 +74,12 @@ interface SpotOnContextType {
   lastDriveSync: string | null;
   firestoreSyncStatus: 'synced' | 'syncing' | 'offline' | 'idle';
   syncWithFirestore: () => Promise<boolean>;
+
+  // Billing and referrals
+  entitlements: EntitlementState;
+  hasPremium: boolean;
+  startPremiumCheckout: (productId: 'premium' | 'lifetime' | 'business') => Promise<boolean>;
+  copyReferralLink: () => Promise<boolean>;
 
   // Actions
   setActiveTab: (tab: NavigationTab) => void;
@@ -236,8 +243,46 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return localStorage.getItem(STORAGE_KEY_LAST_SYNC);
   });
   const [firestoreSyncStatus, setFirestoreSyncStatus] = useState<'synced' | 'syncing' | 'offline' | 'idle'>('idle');
+  const [entitlements, setEntitlements] = useState<EntitlementState>(() => {
+    try {
+      const saved = localStorage.getItem('spoton_entitlements_v1');
+      return saved ? { ...DEFAULT_ENTITLEMENTS, ...JSON.parse(saved) } : { ...DEFAULT_ENTITLEMENTS, referralCode: `SPOT-${Math.random().toString(36).slice(2, 8).toUpperCase()}` };
+    } catch {
+      return { ...DEFAULT_ENTITLEMENTS, referralCode: `SPOT-${Math.random().toString(36).slice(2, 8).toUpperCase()}` };
+    }
+  });
 
   const isGoogleConnected = Boolean(googleUser);
+  const hasPremium = isPremium(entitlements);
+
+  useEffect(() => {
+    localStorage.setItem('spoton_entitlements_v1', JSON.stringify(entitlements));
+  }, [entitlements]);
+
+  const startPremiumCheckout = useCallback(async (productId: 'premium' | 'lifetime' | 'business') => {
+    setEntitlements((prev) => ({ ...prev, checkoutStatus: 'loading' }));
+    try {
+      const result = await startCheckout(productId, googleUser?.uid);
+      if (result.url) window.location.assign(result.url);
+      setEntitlements((prev) => ({ ...prev, checkoutStatus: 'success', billingAvailable: true }));
+      return true;
+    } catch (error) {
+      setEntitlements((prev) => ({ ...prev, checkoutStatus: 'error' }));
+      console.warn('[v0] Checkout failed:', error);
+      return false;
+    }
+  }, [googleUser?.uid]);
+
+  const copyReferralLink = useCallback(async () => {
+    try {
+      const link = `${window.location.origin}/?ref=${entitlements.referralCode}`;
+      await navigator.clipboard.writeText(link);
+      return true;
+    } catch {
+      console.warn('[v0] Could not copy referral link');
+      return false;
+    }
+  }, [entitlements.referralCode]);
 
   // Undo & Toast
   const [lastAction, setLastAction] = useState<HistoryAction | null>(null);
@@ -1264,6 +1309,10 @@ export const SpotOnProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         lastDriveSync,
         firestoreSyncStatus,
         syncWithFirestore,
+        entitlements,
+        hasPremium,
+        startPremiumCheckout,
+        copyReferralLink,
         setActiveTab,
         openAddModal,
         closeAddModal,

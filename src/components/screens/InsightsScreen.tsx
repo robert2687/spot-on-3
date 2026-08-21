@@ -29,7 +29,7 @@ import { MilestonesSection } from '../insights/MilestonesSection';
 import { MonetizationPanel } from '../insights/MonetizationPanel';
 
 export const InsightsScreen: React.FC = () => {
-  const { purchases, settings, updateSettings, showToast, t, language } = useSpotOn();
+  const { purchases, settings, updateSettings, showToast, t, language, hasPremium } = useSpotOn();
   const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month');
   const [hoveredHeatmapCell, setHoveredHeatmapCell] = useState<{
     day: string;
@@ -627,6 +627,11 @@ export const InsightsScreen: React.FC = () => {
       </section>
 
       <MonetizationPanel />
+
+      <section className="rounded-3xl border border-violet-100 bg-violet-50/70 p-5 dark:border-violet-900/50 dark:bg-violet-950/25">
+        <div className="flex items-center gap-2"><Sparkles className="size-4 text-violet-600" /><h2 className="text-sm font-bold text-slate-900 dark:text-white">Premium spending coach</h2><span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">PREMIUM</span></div>
+        {hasPremium ? <div className="mt-3 grid gap-3 sm:grid-cols-3">{dynamicInsights.slice(0, 3).map((insight) => <div key={insight} className="rounded-2xl bg-white/80 p-3 text-xs leading-5 text-slate-700 dark:bg-slate-900/60 dark:text-slate-300">{insight}</div>)}</div> : <div className="mt-3 flex items-center justify-between gap-4"><p className="max-w-xl text-xs leading-5 text-slate-600 dark:text-slate-300">Get a clearer read on recurring places, pacing, and habits using the data already in SpotOn. No external AI service or new data source required.</p><span className="shrink-0 text-xs font-bold text-violet-700 dark:text-violet-300">Unlock above</span></div>}
+      </section>
 
       {/* ========================================================= */}
       {/* 2. MILESTONES & CELEBRATIONS SECTION */}

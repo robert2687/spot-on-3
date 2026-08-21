@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, Copy, Crown, Gift, LoaderCircle, Sparkles, Users } from 'lucide-react';
 import { useSpotOn } from '../../context/SpotOnContext';
 import { BILLING_PRODUCTS } from '../../services/billing';
+import { PremiumModal } from './PremiumModal';
+import { ReferralDashboard } from './ReferralDashboard';
 
 export const MonetizationPanel: React.FC = () => {
-  const { entitlements, hasPremium, startPremiumCheckout, copyReferralLink, showToast } = useSpotOn();
+  const { entitlements, hasPremium, startPremiumCheckout, copyReferralLink } = useSpotOn();
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
 
   const checkout = async (id: 'premium' | 'lifetime' | 'business') => {
     await startPremiumCheckout(id);
@@ -39,7 +42,7 @@ export const MonetizationPanel: React.FC = () => {
             <button
               type="button"
               disabled={entitlements.checkoutStatus === 'loading' || (hasPremium && product.id === 'premium')}
-              onClick={() => checkout(product.id)}
+              onClick={() => product.id === 'premium' ? setIsPremiumModalOpen(true) : checkout(product.id)}
               className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {entitlements.checkoutStatus === 'loading' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
@@ -48,6 +51,9 @@ export const MonetizationPanel: React.FC = () => {
           </article>
         ))}
       </div>
+
+      <ReferralDashboard />
+      <PremiumModal isOpen={isPremiumModalOpen} onClose={() => setIsPremiumModalOpen(false)} />
 
       <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-blue-50 p-4 dark:bg-blue-950/30 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
